@@ -16,6 +16,7 @@
 package com.google.firebase.udacity.friendlychat;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -29,7 +30,11 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
+import com.firebase.ui.auth.AuthUI;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -39,6 +44,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class MainActivity extends AppCompatActivity {
 
     private FirebaseDatabase mFirebaseDatabase;
@@ -46,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
 	private ChildEventListener mChildEventListener;
     private static final String TAG = "MainActivity";
 
+	public static final int RC_SIGN_IN = 1;
     public static final String ANONYMOUS = "anonymous";
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 1000;
 
@@ -58,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
 
     private String mUsername;
 
+	private FirebaseAuth mFirebaseAuth;
+	private FirebaseAuth.AuthStateListener mAuthStateListener;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
 		mFirebaseDatabase = FirebaseDatabase.getInstance();
 		mDatabaseReference = mFirebaseDatabase.getReference().child("messages");
 
+		mFirebaseAuth = FirebaseAuth.getInstance();
         mUsername = ANONYMOUS;
 
         // Initialize references to views
@@ -160,9 +170,44 @@ public class MainActivity extends AppCompatActivity {
 			}
 		};
 		mDatabaseReference .addChildEventListener(mChildEventListener);
+
+		mAuthStateListener = new FirebaseAuth.AuthStateListener() {
+			@Override
+			public void onAuthStateChanged (@NonNull final FirebaseAuth firebaseAuth) {
+				FirebaseUser currentUser = firebaseAuth.getCurrentUser();
+				if (currentUser != null){
+					Toast.makeText(MainActivity.this, "Signed in to the Chat App.", Toast.LENGTH_LONG).show();
+				}else{
+					startActivityForResult(
+							AuthUI.getInstance()
+									.createSignInIntentBuilder()
+									.setProviders(AuthUI.EMAIL_PROVIDER, AuthUI.GOOGLE_PROVIDER)
+									.build(),
+							RC_SIGN_IN);
+				}
+			}
+		};
     }
 
-    @Override
+
+
+	@Override
+	protected void onResume () {
+		super.onResume();
+		mFirebaseAuth.addAuthStateListener(mAuthStateListener);
+	}
+
+
+
+	@Override
+	protected void onPause () {
+		super.onPause();
+		mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+	}
+
+
+
+	@Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
