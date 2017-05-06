@@ -15,6 +15,7 @@
  */
 package com.google.firebase.udacity.friendlychat;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -71,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
 		mFirebaseDatabase = FirebaseDatabase.getInstance();
 		mDatabaseReference = mFirebaseDatabase.getReference().child("messages");
 
@@ -134,50 +134,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-		mChildEventListener = new ChildEventListener() {
-			@Override
-			public void onChildAdded (final DataSnapshot dataSnapshot, final String s) {
-				FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
-				mMessageAdapter.add(friendlyMessage);
-			}
-
-
-
-			@Override
-			public void onChildChanged (final DataSnapshot dataSnapshot, final String s) {
-
-			}
-
-
-
-			@Override
-			public void onChildRemoved (final DataSnapshot dataSnapshot) {
-
-			}
-
-
-
-			@Override
-			public void onChildMoved (final DataSnapshot dataSnapshot, final String s) {
-
-			}
-
-
-
-			@Override
-			public void onCancelled (final DatabaseError databaseError) {
-
-			}
-		};
-		mDatabaseReference .addChildEventListener(mChildEventListener);
-
 		mAuthStateListener = new FirebaseAuth.AuthStateListener() {
 			@Override
 			public void onAuthStateChanged (@NonNull final FirebaseAuth firebaseAuth) {
 				FirebaseUser currentUser = firebaseAuth.getCurrentUser();
 				if (currentUser != null){
-					Toast.makeText(MainActivity.this, "Signed in to the Chat App.", Toast.LENGTH_LONG).show();
+					onUserSignedIn(currentUser.getDisplayName());
 				}else{
+					onUserSignedOut();
 					startActivityForResult(
 							AuthUI.getInstance()
 									.createSignInIntentBuilder()
@@ -188,6 +152,78 @@ public class MainActivity extends AppCompatActivity {
 			}
 		};
     }
+
+
+
+	private void onUserSignedIn (final String displayName) {
+		mUsername = displayName;
+		onAttachEventListener();
+	}
+
+	private void onUserSignedOut () {
+		mUsername = "";
+		mMessageAdapter.clear();
+		onDetachEventListener();
+	}
+
+
+
+	private void onDetachEventListener () {
+		if(mChildEventListener != null){
+			mDatabaseReference.removeEventListener(mChildEventListener);
+			mChildEventListener = null;
+		}
+	}
+
+
+
+	private void onAttachEventListener () {
+		if (mChildEventListener == null){
+			mChildEventListener = new ChildEventListener() {
+				@Override
+				public void onChildAdded (final DataSnapshot dataSnapshot, final String s) {
+					FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
+					mMessageAdapter.add(friendlyMessage);
+				}
+
+				@Override
+				public void onChildChanged (final DataSnapshot dataSnapshot, final String s) {
+
+				}
+
+				@Override
+				public void onChildRemoved (final DataSnapshot dataSnapshot) {
+
+				}
+
+				@Override
+				public void onChildMoved (final DataSnapshot dataSnapshot, final String s) {
+
+				}
+
+				@Override
+				public void onCancelled (final DatabaseError databaseError) {
+
+				}
+			};
+			mDatabaseReference.addChildEventListener(mChildEventListener);
+		}
+	}
+
+
+
+	@Override
+	protected void onActivityResult (final int requestCode, final int resultCode, final Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if (requestCode == RC_SIGN_IN){
+			if (resultCode == RESULT_OK){
+				Toast.makeText(MainActivity.this, "Welcome to the Chat App!", Toast.LENGTH_LONG).show();
+			}else if (resultCode == RESULT_CANCELED){
+				Toast.makeText(MainActivity.this, "Sign-in Cancelled!", Toast.LENGTH_SHORT).show();
+				finish();
+			}
+		}
+	}
 
 
 
@@ -202,7 +238,12 @@ public class MainActivity extends AppCompatActivity {
 	@Override
 	protected void onPause () {
 		super.onPause();
-		mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+		if (mAuthStateListener != null){
+			mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+		}
+		mMessageAdapter.clear();
+		onDetachEventListener();
+
 	}
 
 
@@ -216,6 +257,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
+		switch (item.getItemId()){
+			case R.id.sign_out_menu:
+				AuthUI.getInstance().signOut(this);
+				return true;
+			default:
+				return super.onOptionsItemSelected(item);
+		}
     }
 }
