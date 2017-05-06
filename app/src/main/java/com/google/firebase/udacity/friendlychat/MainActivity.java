@@ -30,11 +30,16 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private FirebaseDatabase mFirebaseDatabase;
+	private DatabaseReference mDatabaseReference;
     private static final String TAG = "MainActivity";
 
     public static final String ANONYMOUS = "anonymous";
@@ -54,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+		mFirebaseDatabase = FirebaseDatabase.getInstance();
+		mDatabaseReference = mFirebaseDatabase.getReference().child("messages");
         mUsername = ANONYMOUS;
 
         // Initialize references to views
@@ -104,8 +111,9 @@ public class MainActivity extends AppCompatActivity {
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // TODO: Send messages on click
 
+				FriendlyMessage friendlyMessage = new FriendlyMessage(mMessageEditText.getText().toString(), mUsername, null);
+				mDatabaseReference.push().setValue(friendlyMessage);
                 // Clear input box
                 mMessageEditText.setText("");
             }
